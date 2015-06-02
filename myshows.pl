@@ -10,6 +10,8 @@ use LWP::UserAgent;
 use Digest::MD5 qw/md5_hex/;
 use JSON;
 
+binmode(STDOUT, ':utf8');
+
 my $CONFIG_PATH = "$ENV{HOME}/.myshowsrc";
 
 my $request_type = (($ARGV[0] // '') eq 'next') ? 'next': 'unwatched';
