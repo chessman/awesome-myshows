@@ -3,18 +3,29 @@
 use 5.010;
 use strict;
 use warnings;
+no warnings 'experimental::smartmatch';
 
 #use HTTP::Async if possible or fallback to LWP::UserAgent
 my $ASYNC = eval {require HTTP::Async and HTTP::Async->import};
 use LWP::UserAgent;
 use Digest::MD5 qw/md5_hex/;
 use JSON;
+use Getopt::Long;
 
 binmode(STDOUT, ':utf8');
 
 my $CONFIG_PATH = "$ENV{HOME}/.myshowsrc";
 
-my $request_type = (($ARGV[0] // '') eq 'next') ? 'next': 'unwatched';
+my $request_type = 'unwatched';
+my $output = 'stdout';
+
+GetOptions (
+    "type=s" => \$request_type,
+    "output=s" => \$output
+);
+
+die "Wrong parameter: $request_type" unless $request_type ~~ ['next', 'unwatched'];
+die "Wrong parameter: $output" unless $output ~~ ['stdout', 'notify-send'];
 
 sub read_config {
     open my $fd, $CONFIG_PATH or die "Can't read $CONFIG_PATH: $!";
@@ -86,10 +97,24 @@ sub color_date {
             $m2 == $m1 and abs($d2 - $d1) < $delta
         )
     ) {
-        return "<span color=\"red\">$date</span>";
+        if ($output eq 'notify-send') {
+            return "<span color=\"red\">$date</span>";
+        } else {
+            return $date;
+        }
     }
 
     return $date;
+}
+
+sub color_title {
+    my ($title) = @_;
+
+    if ($output eq 'notify-send') {
+        return "<span color=\"#87D7FF\"><b>$title</b></span>";
+    } else {
+        return $title;
+    }
 }
 
 sub get_show_titles {
@@ -129,16 +154,30 @@ my $series_by_show = by_show($series);
 
 my $show_titles = get_show_titles(keys %$series_by_show);
 
+my @message;
+
 foreach my $show_id (sort keys %$series_by_show) {
     my $episodes = $series_by_show->{$show_id};
     my $cnt = @$episodes;
-    say "<span color=\"#87D7FF\"><b>$show_titles->{$show_id} ($cnt)</b></span>";
+    push @message, color_title("$show_titles->{$show_id} ($cnt)") . "\n";
+
+    push @message, "\n";
 
     foreach (sort {$a->{seasonNumber} <=> $b->{seasonNumber} ||
                    $a->{episodeNumber} <=> $b->{episodeNumber}} @$episodes) {
-        say sprintf "%s S%02dE%02d %s",
+        push @message, sprintf "%s S%02dE%02d %s\n",
             color_date($_->{airDate}), $_->{seasonNumber}, $_->{episodeNumber}, $_->{title};
     }
 
-    print "\n";
+    push @message, "\n";
+}
+
+my $message = join "", @message;
+
+$message =~ s/"/\\"/g;
+
+if ($output eq 'notify-send') {
+    system('notify-send -t 30000 "' . $message . '"');
+} else {
+    print $message;
 }

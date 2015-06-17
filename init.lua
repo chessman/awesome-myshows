@@ -18,12 +18,9 @@ function get_buttons()
 end
 
 function notify(type)
-    myshows.text = pread(awful.util.getdir("config") .. "/myshows/myshows.pl " ..
-                         type .. " 2>&1")
-    naughty.notify {
-        text = myshows.text,
-        timeout = 30
-    }
+
+    awful.util.spawn(awful.util.getdir("config") ..
+                     "/myshows/myshows.pl -o notify-send -t " ..  type .. " 2>&1")
 end
 
 myshows.icon_widget = wibox.widget.imagebox()
