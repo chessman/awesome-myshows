@@ -12,7 +12,7 @@ used standalone without Awesome.
     git clone git://github.com/chessman/awesome-myshows.git myshows
 
     echo "login=<myshows-login>" > ~/.myshowsrc
-    echo "password=<myshows-password>" > ~/.myshowsrc
+    echo "password=<myshows-password>" >> ~/.myshowsrc
 
 ### rc.lua
 
