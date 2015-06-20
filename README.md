@@ -8,6 +8,10 @@ used standalone without Awesome.
 
 ## Installation
 
+Required Perl packages: libwww-perl, JSON.
+
+Optional: HTTP-Async.
+
     cd ~/.config/awesome
     git clone git://github.com/chessman/awesome-myshows.git myshows
 
