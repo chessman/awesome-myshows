@@ -7,10 +7,10 @@ no warnings 'experimental::smartmatch';
 
 #use HTTP::Async if possible or fallback to LWP::UserAgent
 my $ASYNC = eval {require HTTP::Async and HTTP::Async->import};
-use LWP::UserAgent;
 use Digest::MD5 qw/md5_hex/;
-use JSON;
 use Getopt::Long;
+use LWP::UserAgent;
+use JSON;
 
 binmode(STDOUT, ':utf8');
 
@@ -24,11 +24,27 @@ GetOptions (
     "output=s" => \$output
 );
 
-die "Wrong parameter: $request_type" unless $request_type ~~ ['next', 'unwatched'];
-die "Wrong parameter: $output" unless $output ~~ ['stdout', 'notify-send'];
+sub message {
+    my ($msg) = @_;
+    if ($output eq 'stdout') {
+        print $msg;
+    } else {
+        $msg =~ s/"/\\"/g;
+        system('notify-send -t 30000 "' . $msg . '"');
+    }
+}
+
+sub error {
+    my ($msg) = @_;
+    message($msg) if $output eq 'notify-send';
+    die(@_);
+}
+
+error "Wrong parameter: $request_type" unless $request_type ~~ ['next', 'unwatched'];
+error "Wrong parameter: $output" unless $output ~~ ['stdout', 'notify-send'];
 
 sub read_config {
-    open my $fd, $CONFIG_PATH or die "Can't read $CONFIG_PATH: $!";
+    open my $fd, $CONFIG_PATH or error "Can't read $CONFIG_PATH: $!";
     my $conf;
     while (my $line = <$fd>) {
         my ($key, $val) = split '=', $line;
@@ -40,7 +56,7 @@ sub read_config {
 
 sub check_response {
     my ($response) = @_;
-    die $response->status_line unless $response->is_success;
+    error $response->status_line unless $response->is_success;
 }
 
 sub parse {
@@ -52,8 +68,8 @@ sub get_series {
     my ($conf) = @_;
     my $ua = LWP::UserAgent->new;
 
-    my $login = $conf->{login} // die "Can't find login in $CONFIG_PATH";
-    my $md5_pass = md5_hex($conf->{password} // die "Can't find password in $CONFIG_PATH");
+    my $login = $conf->{login} // error "Can't find login in $CONFIG_PATH";
+    my $md5_pass = md5_hex($conf->{password} // error "Can't find password in $CONFIG_PATH");
 
     my $response =
     $ua->get("http://api.myshows.ru/profile/login?login=$login&password=$md5_pass");
@@ -172,12 +188,5 @@ foreach my $show_id (sort keys %$series_by_show) {
     push @message, "\n";
 }
 
-my $message = join "", @message;
-
-$message =~ s/"/\\"/g;
-
-if ($output eq 'notify-send') {
-    system('notify-send -t 30000 "' . $message . '"');
-} else {
-    print $message;
-}
+my $msg = join "", @message;
+message($msg);
